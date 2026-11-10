@@ -1,0 +1,14 @@
+id: future-radio
+version: 1.0.0
+sources:
+  - docs/product-spec.md
+  - ARCHITECTURE.md
+invariants:
+  - id: canon.product_name
+    description: The canonical product name is Future Radio OS.
+    field: product_name
+    equals: Future Radio OS
+  - id: canon.primary_invariant
+    description: Solved work must reduce future problem cost.
+    field: primary_invariant
+    equals: Every solved problem should make future problems easier to solve.
