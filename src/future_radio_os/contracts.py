@@ -81,15 +81,19 @@ class EvidenceContract(ContractModel):
 
 class SolutionContract(ContractModel):
     id: str = Field(min_length=1)
+    version: str = Field(default="1.0.0", min_length=1)
     schema_version: Literal[1]
     problem_signature: str = Field(min_length=1)
     assumptions: list[str]
+    environments: list[str] = Field(default_factory=list)
     procedure: list[str] = Field(min_length=1)
     dependencies: list[str]
     tests: list[str] = Field(min_length=1)
     evidence_ids: list[str] = Field(min_length=1)
     limitations: list[str] = Field(min_length=1)
     status: SolutionStatus
+    maintenance_status: Literal["active", "maintenance_due", "unmaintained"] = "active"
+    affected_missions: list[str] = Field(default_factory=list)
     provenance: Provenance
 
 
