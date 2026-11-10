@@ -1,0 +1,18 @@
+{
+  "bend_output": 10,
+  "compiler": "bend 2.0.40",
+  "conventional_output": 10,
+  "equivalence_law": "bend_output == conventional_output == 10",
+  "equivalent": true,
+  "input": [
+    1,
+    2,
+    3,
+    4
+  ],
+  "runtime_ms": 71.265,
+  "source": "experiments/bend/sum.bend",
+  "source_sha256": "7adfb5747971825e0783d0f9e2b4810c3324e28c63e4fc708cdb63b9a55e58b9",
+  "status": "verified_local",
+  "verdict": "not_run: requires Lean 4.34.0 BendTT kernel"
+}
