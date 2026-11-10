@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+cd "$(dirname "${BASH_SOURCE[0]}")/.."
+
+if [[ ! -x .venv/bin/python ]]; then
+  printf '%s\n' 'Missing .venv. Run ./scripts/bootstrap first.' >&2
+  exit 1
+fi
+
+exec env -u PYTHONPATH .venv/bin/python -c '
+import json
+import sys
+from future_radio_os.app import create_app
+
+routes = sorted(route.path for route in create_app().routes if route.path in {"/health", "/ready"})
+result = {
+    "status": "ok" if routes == ["/health", "/ready"] else "error",
+    "service": "future-radio-os",
+    "checks": {"health_route": "/health" in routes, "readiness_route": "/ready" in routes},
+}
+print(json.dumps(result, sort_keys=True))
+sys.exit(0 if result["status"] == "ok" else 1)
+'

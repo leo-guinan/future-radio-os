@@ -1,0 +1,30 @@
+[project]
+name = "future-radio-os"
+version = "0.1.0"
+description = "Local-first orchestration system for verified reusable solutions"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi>=0.115,<1",
+    "uvicorn[standard]>=0.34,<1",
+]
+
+[project.optional-dependencies]
+dev = [
+    "httpx>=0.28,<1",
+    "pytest>=8,<9",
+]
+
+[project.scripts]
+future-radio-os = "future_radio_os.cli:main"
+
+[build-system]
+requires = ["hatchling>=1.27,<2"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/future_radio_os"]
+
+[tool.pytest.ini_options]
+addopts = "-q"
+testpaths = ["tests"]

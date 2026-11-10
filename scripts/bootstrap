@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+cd "$(dirname "${BASH_SOURCE[0]}")/.."
+
+if ! command -v uv >/dev/null 2>&1; then
+  printf '%s\n' 'uv is required. Install it from https://docs.astral.sh/uv/' >&2
+  exit 1
+fi
+
+if [[ ! -x .venv/bin/python ]]; then
+  uv venv .venv --python 3.11
+fi
+UV_PROJECT_ENVIRONMENT=.venv uv sync --extra dev
+printf '%s\n' 'Future Radio OS environment ready.'
+printf '%s\n' 'Run: ./scripts/doctor'
+printf '%s\n' 'Start: env -u PYTHONPATH .venv/bin/future-radio-os'
