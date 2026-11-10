@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "compatibility": {
+    "unknown_future_versions": "reject",
+    "additive_fields": "require explicit compatibility review or increment schema_version",
+    "provenance_statuses": ["planned", "estimated", "modeled", "verified", "unknown"]
+  },
+  "contract_kinds": [
+    "problem",
+    "mission",
+    "task",
+    "evidence",
+    "solution",
+    "capability",
+    "artifact",
+    "session_policy"
+  ]
+}

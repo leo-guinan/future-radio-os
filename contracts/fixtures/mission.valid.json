@@ -1,0 +1,10 @@
+{
+  "id": "mission-fixture-001",
+  "schema_version": 1,
+  "problem_id": "problem-fixture-001",
+  "goal": "Validate a synthetic contract fixture",
+  "acceptance_tests": ["contract_validates"],
+  "budget": {"human_minutes_max": 5, "compute_usd_max": 0},
+  "status": "proposed",
+  "provenance": {"status": "modeled", "source_ids": ["fixture://synthetic"]}
+}
