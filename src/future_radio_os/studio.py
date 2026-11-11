@@ -1,9 +1,12 @@
 from dataclasses import asdict, dataclass
 from html import escape
+import re
 from typing import Literal
+from urllib.parse import urlparse
 
 
 StudioStatus = Literal["unknown", "estimated", "modeled", "verified", "active", "blocked", "resolved"]
+ALLOWED_STATUSES = {"unknown", "estimated", "modeled", "verified", "active", "blocked", "resolved"}
 
 
 @dataclass(frozen=True)
@@ -47,6 +50,30 @@ class StudioReadModel:
     def _add(self, view: str, item_id: str, title: str, status: StudioStatus, source_url: str) -> StudioItem:
         if not item_id.strip() or not title.strip() or not source_url.strip():
             raise ValueError("studio items require ID, title, and source URL")
+        if status not in ALLOWED_STATUSES:
+            raise ValueError("studio item status is not classified")
+        _validate_source_url(source_url)
         item = StudioItem(item_id, title, status, source_url)
         self._items[view].append(item)
         return item
+
+
+def _validate_source_url(source_url: str) -> None:
+    try:
+        parsed = urlparse(source_url)
+    except ValueError as exc:
+        raise ValueError("source URL is malformed") from exc
+    scheme = parsed.scheme.lower()
+    if scheme not in {"http", "https", "source", "artifact", "receipt", "proposal", "invoice"}:
+        raise ValueError("source URL must use an approved scheme")
+    if any(ord(char) < 32 or char in {"\\", "%"} for char in source_url):
+        raise ValueError("source URL is malformed")
+    if scheme in {"http", "https"}:
+        if parsed.username is not None or parsed.password is not None or parsed.netloc.endswith(":"):
+            raise ValueError("source URL must not contain userinfo or a dangling port")
+        if not parsed.netloc or not parsed.hostname or not re.fullmatch(r"[A-Za-z0-9.:-]+", parsed.hostname):
+            raise ValueError("source URL must include a valid HTTP(S) authority")
+        try:
+            parsed.port
+        except ValueError as exc:
+            raise ValueError("source URL must include a valid HTTP(S) port") from exc

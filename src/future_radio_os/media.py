@@ -18,10 +18,21 @@ class Segment:
     fallback: bool = False
 
     def eligible(self, now: datetime) -> bool:
+        if not now.tzinfo or now.utcoffset() is None:
+            raise PlayoutError("playout time must include a timezone")
         if not self.approved or not self.rights_ok:
             return False
-        if self.expires_at and datetime.fromisoformat(self.expires_at) <= now:
-            return False
+        if self.expires_at:
+            if not isinstance(self.expires_at, str):
+                raise PlayoutError("expiry must be a string")
+            try:
+                expires = datetime.fromisoformat(self.expires_at.replace("Z", "+00:00"))
+            except ValueError as exc:
+                raise PlayoutError("expiry must be ISO-8601") from exc
+            if not expires.tzinfo or expires.utcoffset() is None:
+                raise PlayoutError("expiry must include a timezone")
+            if expires <= now:
+                return False
         return True
 
 

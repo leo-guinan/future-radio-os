@@ -27,6 +27,8 @@ class MissionLedger:
 
     def __init__(self, path: str | Path | None = None):
         self._memory = path is None
+        if path is not None:
+            Path(path).parent.mkdir(parents=True, exist_ok=True)
         self._connection = sqlite3.connect(":memory:" if path is None else Path(path))
         self._connection.row_factory = sqlite3.Row
         self._connection.execute(
@@ -83,17 +85,27 @@ class MissionLedger:
         return revenue - expenses
 
     def incremental_cost(self, *, mission_id: str) -> Decimal:
+        self._assert_single_unit(mission_id)
         rows = self._connection.execute("SELECT amount FROM ledger WHERE kind = 'expense' AND mission_id = ?", (mission_id,)).fetchall()
         return sum((Decimal(row["amount"]) for row in rows), Decimal("0"))
 
     def incremental_revenue(self, *, mission_id: str) -> Decimal:
+        self._assert_single_unit(mission_id)
         rows = self._connection.execute("SELECT amount FROM ledger WHERE kind = 'revenue' AND mission_id = ? AND status IN ('received', 'earned')", (mission_id,)).fetchall()
         return sum((Decimal(row["amount"]) for row in rows), Decimal("0"))
 
     def close(self) -> None:
         self._connection.close()
 
+    def _assert_single_unit(self, mission_id: str) -> None:
+        units = self._connection.execute("SELECT DISTINCT unit FROM ledger WHERE mission_id = ?", (mission_id,)).fetchall()
+        if len(units) > 1:
+            raise LedgerError("mission cannot aggregate mixed ledger units without an explicit conversion")
+
     def _insert(self, entry: LedgerEntry) -> LedgerEntry:
+        existing_units = self._connection.execute("SELECT DISTINCT unit FROM ledger WHERE mission_id = ?", (entry.mission_id,)).fetchall()
+        if existing_units and any(row["unit"] != entry.unit for row in existing_units):
+            raise LedgerError("mission cannot mix ledger units without an explicit conversion")
         self._connection.execute("INSERT INTO ledger VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)", (entry.entry_id, entry.kind, entry.mission_id, entry.category, str(entry.amount), entry.unit, entry.status, entry.provenance, entry.provider_receipt))
         self._connection.commit()
         return entry
@@ -112,8 +124,10 @@ class MissionLedger:
             raise LedgerError("provenance is required")
         try:
             value = Decimal(amount)
-        except (InvalidOperation, ValueError) as exc:
+        except (InvalidOperation, TypeError, ValueError) as exc:
             raise LedgerError("amount must be numeric") from exc
+        if not value.is_finite():
+            raise LedgerError("amount must be finite")
         if value < 0:
             raise LedgerError("amount cannot be negative")
         return value

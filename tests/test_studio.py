@@ -1,3 +1,6 @@
+from typing import Any, cast
+
+import pytest
 from fastapi.testclient import TestClient
 
 from future_radio_os.app import create_app
@@ -26,6 +29,23 @@ def test_unknown_and_modeled_states_are_not_rendered_as_verified():
     model.add_future(item_id="h-2", title="Modeled path", status="modeled", source_url="source://h-2")
     statuses = {item["status"] for item in model.snapshot()["future"]}
     assert statuses == {"estimated", "modeled"}
+
+
+def test_external_source_links_reject_unsafe_schemes():
+    model = StudioReadModel()
+    with pytest.raises(ValueError, match="source URL"):
+        model.add_future(item_id="h-xss", title="Unsafe", status="unknown", source_url="javascript:alert(1)")
+    with pytest.raises(ValueError, match="source URL"):
+        model.add_future(item_id="h-malformed", title="Malformed", status="unknown", source_url="https:")
+    for malformed in ("https://@", "https://:", "https://\\", "https://%", "https://example.com:", "https://trusted.example@evil.example"):
+        with pytest.raises(ValueError, match="source URL"):
+            model.add_future(item_id="h-invalid", title="Malformed", status="unknown", source_url=malformed)
+
+
+def test_studio_rejects_unclassified_statuses():
+    model = StudioReadModel()
+    with pytest.raises(ValueError, match="status"):
+        model.add_present(item_id="m-bad", title="Bad", status=cast(Any, "invented"), source_url="source://m-bad")
 
 
 def test_browser_smoke_reads_seeded_studio_path_from_app():

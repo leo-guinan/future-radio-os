@@ -1,4 +1,5 @@
 from datetime import datetime, timezone
+from typing import Any, cast
 
 import pytest
 
@@ -42,3 +43,17 @@ def test_missing_fallback_or_unapproved_publication_fails_closed():
         scheduler.play("draft", playback=lambda _: True)
     with pytest.raises(PlayoutError, match="fallback"):
         scheduler.play("main", playback=lambda _: False)
+
+
+def test_naive_expiry_is_rejected_instead_of_comparing_mixed_datetime_types():
+    library = MediaLibrary()
+    library.add(segment("naive", expires_at="2026-01-01T00:00:00"))
+    with pytest.raises(PlayoutError, match="timezone"):
+        Scheduler(library).eligible(now=datetime(2026, 1, 1, tzinfo=timezone.utc))
+
+
+def test_non_string_expiry_is_rejected_with_playout_error():
+    library = MediaLibrary()
+    library.add(segment("bad", expires_at=cast(Any, 123)))
+    with pytest.raises(PlayoutError, match="expiry"):
+        Scheduler(library).eligible(now=datetime(2026, 1, 1, tzinfo=timezone.utc))

@@ -1,6 +1,4 @@
-import json
 import sqlite3
-from datetime import datetime, timezone
 from pathlib import Path
 
 import pytest
@@ -75,6 +73,36 @@ def test_invalid_schema_and_identity_are_rejected(tmp_path: Path):
     missing_identity["actor"] = {"kind": "agent"}
     with pytest.raises(EventValidationError, match="actor.id"):
         journal.append(missing_identity)
+    journal.close()
+
+
+def test_naive_timestamps_are_rejected_to_preserve_utc_ordering(tmp_path: Path):
+    journal = EventJournal(tmp_path / "events.sqlite3")
+    with pytest.raises(EventValidationError, match="timezone"):
+        journal.append(event("evt-naive", "2026-11-10T20:00:00"))
+    journal.close()
+
+
+def test_offsets_are_normalized_before_ordering_and_range_queries(tmp_path: Path):
+    journal = EventJournal(tmp_path / "events.sqlite3")
+    journal.append(event("evt-later", "2026-11-10T20:30:00+01:00"))
+    journal.append(event("evt-earlier", "2026-11-10T20:00:00Z"))
+
+    assert [item["event_id"] for item in journal.list_all()] == ["evt-later", "evt-earlier"]
+    assert [item["event_id"] for item in journal.list_between("2026-11-10T19:29:00Z", "2026-11-10T19:31:00Z")] == ["evt-later"]
+    journal.close()
+
+
+def test_legacy_naive_rows_remain_readable_as_utc(tmp_path: Path):
+    journal = EventJournal(tmp_path / "events.sqlite3")
+    legacy = event("evt-legacy", "2026-11-10T20:00:00Z")
+    journal.connection.execute(
+        "INSERT INTO events VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        ("evt-legacy", 1, legacy["type"], "2026-11-10T20:00:00", "2026-11-10T20:00:01", "agent", "test-agent", "run-001", None, None, "[]", "[]", '{"status":"passed"}', '{"usd":0}', None),
+    )
+    journal.connection.commit()
+    assert [item["event_id"] for item in journal.list_all()] == ["evt-legacy"]
+    assert [item["event_id"] for item in journal.list_between("2026-11-10T20:00:00Z", "2026-11-10T20:00:00Z")] == ["evt-legacy"]
     journal.close()
 
 

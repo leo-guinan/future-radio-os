@@ -3,7 +3,7 @@ from pydantic import ValidationError
 
 from future_radio_os.contracts import (
     ArtifactContract,
-    MissionContract,
+
     SolutionContract,
     validate_contract,
 )

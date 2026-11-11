@@ -105,20 +105,16 @@ class EventJournal:
         return _row_to_event(row)
 
     def list_all(self) -> list[dict[str, Any]]:
-        rows = self._connection.execute(
-            "SELECT * FROM events ORDER BY occurred_at, recorded_at, event_id"
-        ).fetchall()
+        rows = self._connection.execute("SELECT * FROM events").fetchall()
+        rows = sorted(rows, key=lambda row: (_event_datetime(row["occurred_at"], allow_legacy_naive=True), _event_datetime(row["recorded_at"], allow_legacy_naive=True), row["event_id"]))
         return [_row_to_event(row) for row in rows]
 
     def list_between(self, start: str, end: str) -> list[dict[str, Any]]:
-        rows = self._connection.execute(
-            """
-            SELECT * FROM events
-            WHERE occurred_at >= ? AND occurred_at <= ?
-            ORDER BY occurred_at, recorded_at, event_id
-            """,
-            (start, end),
-        ).fetchall()
+        start_utc = _event_datetime(start)
+        end_utc = _event_datetime(end)
+        rows = self._connection.execute("SELECT * FROM events").fetchall()
+        rows = [row for row in rows if start_utc <= _event_datetime(row["occurred_at"], allow_legacy_naive=True) <= end_utc]
+        rows = sorted(rows, key=lambda row: (_event_datetime(row["occurred_at"], allow_legacy_naive=True), _event_datetime(row["recorded_at"], allow_legacy_naive=True), row["event_id"]))
         return [_row_to_event(row) for row in rows]
 
     def close(self) -> None:
@@ -163,21 +159,39 @@ class EventJournal:
             raise EventValidationError("verification must be an object")
         if not isinstance(event["cost"], dict):
             raise EventValidationError("cost must be an object")
-        _validate_timestamp(event["occurred_at"], "occurred_at")
-        recorded_at = event.get("recorded_at") or datetime.now(timezone.utc).isoformat()
-        _validate_timestamp(recorded_at, "recorded_at")
         normalized = dict(event)
-        normalized["recorded_at"] = recorded_at
+        normalized["occurred_at"] = _normalize_timestamp(event["occurred_at"], "occurred_at")
+        recorded_at = event.get("recorded_at") or datetime.now(timezone.utc).isoformat()
+        normalized["recorded_at"] = _normalize_timestamp(recorded_at, "recorded_at")
         return normalized
 
 
-def _validate_timestamp(value: Any, field: str) -> None:
+def _normalize_timestamp(value: Any, field: str) -> str:
     if not isinstance(value, str):
         raise EventValidationError(f"{field} must be an ISO-8601 string")
     try:
-        datetime.fromisoformat(value.replace("Z", "+00:00"))
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
     except ValueError as exc:
         raise EventValidationError(f"{field} must be an ISO-8601 string") from exc
+    if parsed.tzinfo is None or parsed.utcoffset() is None:
+        raise EventValidationError(f"{field} must include a timezone")
+    return parsed.astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
+
+
+def _event_datetime(value: Any, *, allow_legacy_naive: bool = False) -> datetime:
+    if allow_legacy_naive and isinstance(value, str):
+        try:
+            parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+        except ValueError:
+            parsed = None
+        if parsed is not None and parsed.tzinfo is None:
+            return parsed.replace(tzinfo=timezone.utc)
+    normalized = _normalize_timestamp(value, "timestamp")
+    return datetime.fromisoformat(normalized.replace("Z", "+00:00"))
+
+
+def _validate_timestamp(value: Any, field: str) -> None:
+    _normalize_timestamp(value, field)
 
 
 def _json(value: Any) -> str:
