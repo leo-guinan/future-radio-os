@@ -34,6 +34,8 @@ The initial architecture queue is complete. GitHub issues #1–#16 are closed wi
 - `docs/product-spec.md` — source product specification
 - `docs/roadmap.md` — staged build plan and issue mapping
 - `docs/architecture-decisions/` — decisions that should not be re-litigated by every task
+- `docs/chromebook-usb.md` — Chromebook Linux/USB setup and boundaries
+- `scripts/chromebook-usb` — portable prepare, doctor, test, and run launcher
 - `contracts/` — versioned machine-readable boundaries and fixtures
 - `worlds/future-radio/world.yaml` — canonical world context fixture
 - `experiments/bend/` — pinned Bend workload and execution receipt
@@ -49,6 +51,16 @@ Requirements: macOS/Linux, Python 3.11, and [uv](https://docs.astral.sh/uv/).
 ./scripts/doctor
 env -u PYTHONPATH .venv/bin/future-radio-os --host 127.0.0.1 --port 8000
 ```
+
+For a Chromebook Linux container with the repository stored on a USB stick, use:
+
+```bash
+./scripts/chromebook-usb prepare
+./scripts/chromebook-usb doctor
+./scripts/chromebook-usb run
+```
+
+See [`docs/chromebook-usb.md`](docs/chromebook-usb.md) for the ChromeOS Linux setup, USB sharing, architecture boundaries, and safe-removal procedure.
 
 The local API exposes:
 
